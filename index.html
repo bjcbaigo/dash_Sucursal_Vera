@@ -1364,21 +1364,37 @@ function renderStock(s) {
     kpiCard("Inmovilizados",   k.inmovilizados|| 0,            "artículos +90 días sin mov.", "down",  "warn")
   );
 
-  if (s.por_familia) {
-    var fams = s.por_familia.slice(0,6);
+  if (s.por_familia && s.por_familia.length) {
+    var fams = s.por_familia.slice(0,8);
     mkChart("chart-stock-fam",{type:"doughnut",data:{
       labels:fams.map(function(f){return f.familia;}),
-      datasets:[{data:fams.map(function(f){return f.valor;}),backgroundColor:C.FAMS.slice(0,fams.length),borderWidth:0}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:10}}}}});
+      datasets:[{data:fams.map(function(f){
+        // Apps Script devuelve f.stock (cantidad) — f.valor es siempre 0 (sin precio en STA19)
+        return f.stock || f.valor || f.cantidad || 0;
+      }),backgroundColor:C.FAMS.slice(0,fams.length),borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:10,
+          generateLabels:function(chart){
+            var ds=chart.data.datasets[0];
+            return chart.data.labels.map(function(l,i){
+              return {text:l+' ('+fmtNum(ds.data[i])+')',fillStyle:ds.backgroundColor[i],strokeStyle:ds.backgroundColor[i],lineWidth:0,index:i};
+            });
+          }
+        }}}}});
   }
 
   if (s.por_antiguedad) {
     var antig = s.por_antiguedad;
     mkChart("chart-stock-antig",{type:"bar",data:{
       labels:antig.map(function(a){return a.tramo;}),
-      datasets:[{data:antig.map(function(a){return a.valor;}),backgroundColor:[C.teal,C.blue,C.amber,C.red],borderRadius:5}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-        scales:{y:{ticks:{callback:function(v){return fmtPeso(v);}}}}}});
+      datasets:[{data:antig.map(function(a){
+        // Apps Script devuelve cantidad de artículos (no valor monetario)
+        return a.valor || a.cantidad || 0;
+      }),backgroundColor:[C.teal,C.blue,C.amber,C.red],borderRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},
+          tooltip:{callbacks:{label:function(ctx){ return ctx.parsed.y + ' artículos'; }}}},
+        scales:{y:{ticks:{callback:function(v){return v + ' art.';}}}}}});
   }
 
   var rowsCrit = "";
