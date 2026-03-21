@@ -715,18 +715,19 @@ function getDemoData() {
     ventas: {
       kpis: {
         ventas_mes:        346535647,
+        ventas_neto:       289245635,
         ticket_promedio:   5620905,
         comprobantes_mes:  1169,
         nc_cantidad:       681,
         nc_importe:        48064996
       },
       evolucion_mensual: [
-        {mes:"Oct 2025",total:515963494,cant:1591},
-        {mes:"Nov 2025",total:430940542,cant:1382},
-        {mes:"Dic 2025",total:724712180,cant:2216},
-        {mes:"Ene 2026",total:469050763,cant:1479},
-        {mes:"Feb 2026",total:446169024,cant:1256},
-        {mes:"Mar 2026",total:346535647,cant:1169}
+        {mes:"Oct 2025",total:515963494,neto:430373000,cant:1591},
+        {mes:"Nov 2025",total:430940542,neto:359274000,cant:1382},
+        {mes:"Dic 2025",total:724712180,neto:604434000,cant:2216},
+        {mes:"Ene 2026",total:469050763,neto:391035000,cant:1479},
+        {mes:"Feb 2026",total:446169024,neto:372168000,cant:1256},
+        {mes:"Mar 2026",total:346535647,neto:289245635,cant:1169}
       ],
       top_articulos: [
         {desc:"HEL SAMSUNG SBS RS27T5561B1",     unidades:1,  importe:4692561},
@@ -891,20 +892,22 @@ actualizarBadgePeriodo();
 // HELPERS DE FILTRADO POR PERÍODO — aplican PERIODO.filtrar() a los datos
 // ═══════════════════════════════════════════════════════════════════════
 function calcularKpisVentas(filas) {
-  // filas = array de objetos del CSV de ventas filtrados por período
-  var ventasMes = 0, cntMes = 0, ncCant = 0, ncImporte = 0;
-  var porMes = {}, porFamilia = {}, topArt = {};
+  var ventasMes = 0, netoMes = 0, cntMes = 0, ncCant = 0, ncImporte = 0;
+  var porMes = {};
 
   filas.forEach(function(r) {
     var total = parseFloat(r.Total || 0);
+    var neto  = parseFloat(r.Neto  || 0);
     var tipo  = r.TipoOperacion || r.TipoComprobante || "";
     var mes   = r.MesAnio || (r.Fecha || "").slice(0, 7);
 
     if (tipo === "VENTA" || r.TipoComprobante === "FAC" || r.TipoComprobante === "FCE") {
       ventasMes += total;
+      netoMes   += neto;
       cntMes++;
-      if (!porMes[mes]) porMes[mes] = { total: 0, cant: 0 };
+      if (!porMes[mes]) porMes[mes] = { total: 0, neto: 0, cant: 0 };
       porMes[mes].total += total;
+      porMes[mes].neto  += neto;
       porMes[mes].cant++;
     } else if (tipo === "NOTA_CREDITO" || r.TipoComprobante === "N/C") {
       ncCant++;
@@ -914,22 +917,22 @@ function calcularKpisVentas(filas) {
 
   var ticketProm = cntMes > 0 ? ventasMes / cntMes : 0;
 
-  // Evolucion mensual ordenada
   var evolucion = Object.keys(porMes).sort().map(function(m) {
-    return { mes: m, total: Math.round(porMes[m].total), cant: porMes[m].cant };
+    return { mes: m, total: Math.round(porMes[m].total), neto: Math.round(porMes[m].neto), cant: porMes[m].cant };
   });
 
   return {
     kpis: {
       ventas_mes:        Math.round(ventasMes),
+      ventas_neto:       Math.round(netoMes),
       ticket_promedio:   Math.round(ticketProm),
       comprobantes_mes:  cntMes,
       nc_cantidad:       ncCant,
       nc_importe:        Math.round(ncImporte)
     },
     evolucion_mensual: evolucion,
-    top_articulos:     (STATE.data.ventas || {}).top_articulos || [],
-    por_familia:       (STATE.data.ventas || {}).por_familia   || []
+    top_articulos:     [],
+    por_familia:       []
   };
 }
 
@@ -1113,17 +1116,34 @@ function showSection(tab) {
 function renderSection(tab) {
   var d = STATE.data;
 
-  // Datos filtrados por período según disponibilidad de CSV raw
-  var ventasFiltradas    = d._raw_ventas    ? PERIODO.filtrar(d._raw_ventas,    "Fecha")        : null;
-  var moraFiltrada       = d._raw_morosidad ? PERIODO.filtrar(d._raw_morosidad, "FechaVencimiento") : null;
-  var segurosFiltrados   = d._raw_seguros   ? PERIODO.filtrar(d._raw_seguros,   "FechaEmision") : null;
-  var garantiasFiltradas = d._raw_garantias ? PERIODO.filtrar(d._raw_garantias, "FechaEmision") : null;
+  // Si hay datos raw del CSV → filtrar por período y recalcular
+  // Si NO hay raw (Apps Script aún no los provee) → usar KPIs precalculados tal cual
+  var ventasData, moraData, segurosData;
 
-  // Recalcular KPIs si hay datos raw
-  var ventasData    = ventasFiltradas    ? calcularKpisVentas(ventasFiltradas)                            : d.ventas;
-  var moraData      = moraFiltrada       ? calcularKpisMorosidad(moraFiltrada)                            : d.morosidad;
-  var segurosData   = (segurosFiltrados && garantiasFiltradas)
-                        ? calcularKpisSeguros(segurosFiltrados, garantiasFiltradas) : d.seguros;
+  if (d._raw_ventas && d._raw_ventas.length) {
+    var vf = PERIODO.filtrar(d._raw_ventas, "Fecha");
+    ventasData = calcularKpisVentas(vf);
+    // Mantener top_articulos y por_familia del servidor (no están en el raw filtrado)
+    ventasData.top_articulos = d.ventas ? (d.ventas.top_articulos || []) : [];
+    ventasData.por_familia   = d.ventas ? (d.ventas.por_familia   || []) : [];
+  } else {
+    ventasData = d.ventas;
+  }
+
+  if (d._raw_morosidad && d._raw_morosidad.length) {
+    var mf = PERIODO.filtrar(d._raw_morosidad, "FechaVencimiento");
+    moraData = calcularKpisMorosidad(mf);
+  } else {
+    moraData = d.morosidad;
+  }
+
+  if (d._raw_seguros && d._raw_seguros.length) {
+    var sf = PERIODO.filtrar(d._raw_seguros,   "FechaEmision");
+    var gf = PERIODO.filtrar(d._raw_garantias || [], "FechaEmision");
+    segurosData = calcularKpisSeguros(sf, gf);
+  } else {
+    segurosData = d.seguros;
+  }
 
   switch(tab) {
     case "ventas":    renderVentas(ventasData);                              break;
@@ -1142,22 +1162,29 @@ function renderVentas(v) {
   if (!v || v.error) { html("kpi-ventas","<p style='color:var(--text-muted);font-size:13px;padding:12px'>Sin datos de ventas.</p>"); return; }
   var k = v.kpis;
   html("kpi-ventas",
-    kpiCard("Ventas del mes", fmtPeso(k.ventas_mes), "▲ mes en curso", "up", "accent") +
-    kpiCard("Ticket promedio", fmtPeso(k.ticket_promedio), fmtNum(k.comprobantes_mes) + " comprobantes", "flat","accent") +
-    kpiCard("Notas de crédito", k.nc_cantidad, fmtPeso(k.nc_importe) + " en NC", k.nc_cantidad>5?"down":"flat","warn")
+    kpiCard("Ventas totales",      fmtPeso(k.ventas_mes),    PERIODO.label(),                               "up",   "accent") +
+    kpiCard("Ventas sin impuestos",fmtPeso(k.ventas_neto),   fmtNum(k.comprobantes_mes) + " comprobantes",  "up",   "accent") +
+    kpiCard("Ticket promedio",     fmtPeso(k.ticket_promedio),"con IVA",                                    "flat", "accent") +
+    kpiCard("Notas de crédito",    k.nc_cantidad,             fmtPeso(k.nc_importe) + " en NC",             k.nc_cantidad>10?"down":"flat","warn")
   );
 
   var meses = v.evolucion_mensual.map(function(e){ return e.mes; });
   var tots  = v.evolucion_mensual.map(function(e){ return e.total; });
+  var netos = v.evolucion_mensual.map(function(e){ return e.neto  || 0; });
   var ult   = document.getElementById("badge-ventas-mes");
-  if (ult) ult.textContent = meses[meses.length-1] || "";
+  if (ult) ult.textContent = PERIODO.label();
 
   mkChart("chart-ventas-ev",{type:"bar",data:{labels:meses,datasets:[
-    {label:"Ventas",data:tots,backgroundColor:C.blue,borderRadius:5,barThickness:28}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
-    scales:{y:{ticks:{callback:function(v){return fmtPeso(v);}}}}}});
+    {label:"Total c/IVA", data:tots,  backgroundColor:C.blue,    borderRadius:5, barThickness:20},
+    {label:"Sin impuestos",data:netos,backgroundColor:C.celeste, borderRadius:5, barThickness:20}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{x:{ticks:{autoSkip:false}}, y:{ticks:{callback:function(v){return fmtPeso(v);}}}}}});
 
-  html("legend-ventas-ev",'<span class="legend-item"><span class="legend-dot" style="background:'+C.blue+'"></span>Ventas mensuales</span>');
+  html("legend-ventas-ev",
+    '<span class="legend-item"><span class="legend-dot" style="background:'+C.blue+'"></span>Total c/IVA</span>' +
+    '<span class="legend-item"><span class="legend-dot" style="background:'+C.celeste+'"></span>Sin impuestos</span>'
+  );
 
   if (v.por_familia && v.por_familia.length) {
     var fams = v.por_familia.slice(0,6);
