@@ -1214,11 +1214,11 @@ function renderStock(s) {
   if (!s || s.error) return;
   var k = s.kpis;
   html("kpi-stock",
-    kpiCard("SKUs activos", fmtNum(k.skus_activos), "en esta sucursal","flat","accent") +
-    kpiCard("Sin stock", k.sin_stock, "agotados","danger","danger") +
-    kpiCard("Bajo mínimo", k.bajo_minimo, "requieren reposición","down","warn") +
-    kpiCard("Inmovilizado", fmtPeso(k.inmovilizado_valor), "+90 días sin movimiento","down","warn") +
-    kpiCard("Valor total", fmtPeso(k.total_valor), "costo promedio","flat","accent")
+    kpiCard("SKUs activos",    fmtNum(k.skus_activos || 0),   "en esta sucursal",            "flat",  "accent") +
+    kpiCard("Sin stock",       k.sin_stock    || 0,            "agotados",                    "down",  "danger") +
+    kpiCard("Stock negativo",  k.negativos    || 0,            "descargas sin existencia",    "down",  "danger") +
+    kpiCard("Bajo punto pedido",k.bajo_minimo || 0,            "requieren reposición",        "down",  "warn")   +
+    kpiCard("Inmovilizados",   k.inmovilizados|| 0,            "artículos +90 días sin mov.", "down",  "warn")
   );
 
   if (s.por_familia) {
@@ -1420,27 +1420,56 @@ function renderSeguros(s) {
 // RESUMEN EJECUTIVO
 // ═══════════════════════════════════════════════════════════════════════
 function renderResumen(d, ventasData, moraData, segurosData) {
-  var v   = ventasData  || d.ventas;
-  var s   = d.stock;
-  var m   = moraData    || d.morosidad;
-  var seg = segurosData || d.seguros;
-  var ventasMes = v && v.kpis ? v.kpis.ventas_mes : 0;
-  var polizas   = seg && seg.kpis ? seg.kpis.total_polizas : 0;
+  var v   = ventasData  || d.ventas    || {};
+  var s   = d.stock     || {};
+  var m   = moraData    || d.morosidad || {};
+  var seg = segurosData || d.seguros   || {};
 
+  var vk  = v.kpis   || {};
+  var sk  = s.kpis   || {};
+  var mk  = m.kpis   || {};
+  var sgk = seg.kpis || {};
+
+  // ── KPI cards ──────────────────────────────────────────────────────
   html("kpi-resumen",
-    kpiCard("Ventas del mes", fmtPeso(ventasMes), "en curso","up","accent") +
-    kpiCard("Mora vencida", fmtPeso(m&&m.kpis?m.kpis.vencido_total:0), (m&&m.kpis?m.kpis.pct_mora:"—") + "% del saldo","down","danger") +
-    kpiCard("Sin stock", s&&s.kpis?s.kpis.sin_stock:0, "artículos críticos","down","danger") +
-    kpiCard("Pólizas Qualia", polizas, "mes actual","up","ok")
+    kpiCard("Ventas " + PERIODO.label(),
+      fmtPeso(vk.ventas_mes   || 0), "sin imp: " + fmtPeso(vk.ventas_neto || 0), "up",   "accent") +
+    kpiCard("Mora vencida",
+      fmtPeso(mk.vencido_total|| 0), (mk.pct_mora||"—") + "% del saldo",          "down", "danger") +
+    kpiCard("Stock crítico",
+      (sk.sin_stock||0) + (sk.negativos||0),
+      (sk.bajo_minimo||0) + " bajo mínimo",                                        "down", "danger") +
+    kpiCard("Garantías / Pólizas",
+      (sgk.total_garantias||0) + " / " + (sgk.total_polizas||0),
+      fmtPeso((sgk.importe_garantias||0)+(sgk.importe_polizas||0)),                "up",   "ok")
   );
 
-  var progR = "";
-  var items = [
-    {label:"Ventas vs obj.", pct:78},{label:"Cobro puntual", pct:79},
-    {label:"Pólizas Qualia", pct:70},{label:"Garantías ext.", pct:100},
-    {label:"Clientes nuevos", pct:62}
+  // ── Barras de estado — calculadas desde datos reales ───────────────
+  // Objetivos: si existen datos de objetivos, calcular pct real
+  var objV = 0, objP = 0, objG = 0;
+  if (d.objetivos && d.objetivos.categorias) {
+    d.objetivos.categorias.forEach(function(c){
+      objV += (c.obj_ventas    || 0);
+      objP += (c.obj_polizas   || 0);
+      objG += (c.obj_garantias || 0);
+    });
+  }
+  var pctVentas  = objV > 0 ? Math.min(Math.round((vk.ventas_mes||0)/objV*100),130) : 0;
+  var pctPolizas = objP > 0 ? Math.min(Math.round((sgk.total_polizas||0)/objP*100),130) : 0;
+  var pctGarant  = objG > 0 ? Math.min(Math.round((sgk.total_garantias||0)/objG*100),130) : 0;
+  // Cobro puntual = % del saldo que está vigente (no vencido)
+  var pctCobro   = mk.saldo_total > 0
+    ? Math.round((1 - (mk.vencido_total||0)/mk.saldo_total)*100) : 0;
+
+  var progItems = [
+    { label: "Ventas vs obj.",  pct: pctVentas,  show: objV > 0 },
+    { label: "Cobro puntual",   pct: pctCobro,   show: mk.saldo_total > 0 },
+    { label: "Garantías ext.",  pct: pctGarant,  show: objG > 0 },
+    { label: "Pólizas Qualia",  pct: pctPolizas, show: objP > 0 }
   ];
-  items.forEach(function(it){
+  var progR = "";
+  progItems.forEach(function(it) {
+    if (!it.show) return;
     var c = progColor(it.pct);
     progR += '<div class="prog-item">' +
       '<span class="prog-label">' + it.label + '</span>' +
@@ -1448,18 +1477,64 @@ function renderResumen(d, ventasData, moraData, segurosData) {
       '<span class="prog-pct">' + it.pct + '%</span>' +
       '</div>';
   });
+  if (!progR) progR = '<p style="font-size:12px;color:var(--text-muted);padding:8px 0">Cargá objetivos en objetivos.csv para ver el progreso.</p>';
   html("prog-resumen", progR);
 
-  var alerts = [
-    {area:"Stock",   txt:"8 artículos sin stock — Smart TV 43\", Lavarropas 9kg, Notebook i7 entre otros",nivel:"alta"},
-    {area:"Morosidad",txt:"$480k en mora +90 días — García y López Hnos. requieren gestión urgente",nivel:"alta"},
-    {area:"Objetivos",txt:"Telefonía al 58% — quedan 7 días hábiles para recuperar",nivel:"media"},
-    {area:"Seguros",  txt:"Penetración pólizas Qualia al 21% — meta es 30%",nivel:"media"},
-    {area:"Stock",   txt:"$1.2M inmovilizado +90 días — evaluar liquidación o transferencia",nivel:"media"},
-    {area:"Ventas",  txt:"Climatización superó objetivo +10% — oportunidad de reforzar",nivel:"ok"}
-  ];
+  // ── Alertas generadas dinámicamente desde datos reales ─────────────
+  var alerts = [];
+
+  // Stock negativo
+  if ((sk.negativos || 0) > 0) {
+    alerts.push({ area:"Stock", nivel:"alta",
+      txt: (sk.negativos) + " artículo(s) con stock negativo — verificar descargas sin existencia" });
+  }
+  // Sin stock
+  if ((sk.sin_stock || 0) > 0) {
+    alerts.push({ area:"Stock", nivel:"alta",
+      txt: (sk.sin_stock) + " artículo(s) sin stock" +
+        (s.criticos && s.criticos.length ? " — ej: " + s.criticos.slice(0,2).map(function(c){return c.desc;}).join(", ") : "") });
+  }
+  // Mora alta
+  if ((mk.mora_mas_90 || 0) > 0) {
+    alerts.push({ area:"Morosidad", nivel:"alta",
+      txt: "Mora +90 días: " + fmtPeso(mk.mora_mas_90) +
+        (m.clientes && m.clientes.length ? " — " + m.clientes[0].nombre : "") });
+  }
+  if ((mk.mora_31_90 || 0) > 0) {
+    alerts.push({ area:"Morosidad", nivel:"media",
+      txt: "Mora 31–90 días: " + fmtPeso(mk.mora_31_90) + " — requiere seguimiento" });
+  }
+  // Objetivos ventas en riesgo
+  if (objV > 0 && pctVentas < 70) {
+    alerts.push({ area:"Ventas", nivel:"media",
+      txt: "Ventas al " + pctVentas + "% del objetivo — meta: " + fmtPeso(objV) });
+  }
+  // Objetivos pólizas
+  if (objP > 0 && pctPolizas < 70) {
+    alerts.push({ area:"Seguros", nivel:"media",
+      txt: "Pólizas Qualia al " + pctPolizas + "% del objetivo (" + (sgk.total_polizas||0) + "/" + objP + ")" });
+  }
+  // Bajo mínimo
+  if ((sk.bajo_minimo || 0) > 0) {
+    alerts.push({ area:"Stock", nivel:"media",
+      txt: (sk.bajo_minimo) + " artículo(s) bajo punto de pedido — revisar reposición" });
+  }
+  // Positivos
+  if (pctVentas >= 100) {
+    alerts.push({ area:"Ventas", nivel:"ok",
+      txt: "Objetivo de ventas cumplido al " + pctVentas + "% — " + fmtPeso(vk.ventas_mes) });
+  }
+  if ((sgk.total_garantias || 0) > 0) {
+    alerts.push({ area:"Garantías", nivel:"ok",
+      txt: (sgk.total_garantias) + " garantías extendidas vendidas — " + fmtPeso(sgk.importe_garantias) });
+  }
+
+  if (!alerts.length) {
+    alerts.push({ area:"Info", nivel:"ok", txt:"Sin alertas activas para el período seleccionado." });
+  }
+
   var alertHtml = "";
-  alerts.forEach(function(a){
+  alerts.forEach(function(a) {
     alertHtml += '<div class="alert-item ' + a.nivel + '">' +
       '<span class="alert-area">' + a.area + '</span>' +
       '<span class="alert-text">' + a.txt + '</span>' +
