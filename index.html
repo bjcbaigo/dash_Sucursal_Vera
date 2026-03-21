@@ -276,6 +276,22 @@ tr:hover td { background: var(--gray-50); }
   padding: 16px 0 4px;
 }
 
+/* ─── SUB-TABS (navegación interna por sección) ─────────────────────── */
+.sub-nav {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.sub-tab {
+  padding: 5px 12px; font-size: 12px; font-weight: 500;
+  border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px solid var(--border); color: var(--text-muted);
+  background: var(--gray-50); transition: all 0.12s; user-select: none;
+}
+.sub-tab:hover { border-color: var(--blue); color: var(--blue); }
+.sub-tab.active { background: var(--blue-pale); color: var(--blue-dark); border-color: var(--blue-light); font-weight: 600; }
+.sub-pane { display: none; }
+.sub-pane.active { display: block; animation: fadeIn 0.15s ease; }
+
 /* ─── CHART CONTAINER ───────────────────────────────────────────────── */
 .chart-box { position: relative; width: 100%; }
 
@@ -400,31 +416,39 @@ tr:hover td { background: var(--gray-50); }
   <!-- ── VENTAS ────────────────────────────────────────────────────── -->
   <div id="sec-ventas" class="section">
     <div class="kpi-grid" id="kpi-ventas"></div>
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Evolución de ventas — 6 meses</span>
-        <span class="card-badge" id="badge-ventas-mes">—</span>
-      </div>
-      <div class="chart-box" style="height:210px"><canvas id="chart-ventas-ev"></canvas></div>
-      <div class="legend" id="legend-ventas-ev"></div>
+    <div class="sub-nav" id="subnav-ventas">
+      <span class="sub-tab active" data-section="ventas" data-pane="evolucion">Evolución</span>
+      <span class="sub-tab" data-section="ventas" data-pane="familias">Por depósito</span>
+      <span class="sub-tab" data-section="ventas" data-pane="ranking">Ranking artículos</span>
     </div>
-    <div class="row-2">
+    <div id="vpane-evolucion" class="sub-pane active">
       <div class="card">
-        <div class="card-header"><span class="card-title">Por familia</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-ventas-fam"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Medio de pago</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-ventas-mp"></canvas></div>
+        <div class="card-header">
+          <span class="card-title">Evolución — 6 meses</span>
+          <span class="card-badge" id="badge-ventas-mes">—</span>
+        </div>
+        <div class="chart-box" style="height:220px"><canvas id="chart-ventas-ev"></canvas></div>
+        <div class="legend" id="legend-ventas-ev"></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Top 10 artículos del mes</span></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Artículo</th><th class="num">Unidades</th><th class="num">Importe</th></tr></thead>
-          <tbody id="tbody-top-art"></tbody>
-        </table>
+    <div id="vpane-familias" class="sub-pane">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Ventas por depósito</span></div>
+        <div class="chart-box" style="height:280px"><canvas id="chart-ventas-fam"></canvas></div>
+      </div>
+    </div>
+    <div id="vpane-ranking" class="sub-pane">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Top 30 artículos</span>
+          <span class="card-badge" id="badge-ranking-periodo">—</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Artículo</th><th class="num">Unidades</th><th class="num">Neto s/imp.</th></tr></thead>
+            <tbody id="tbody-top-art"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -432,32 +456,43 @@ tr:hover td { background: var(--gray-50); }
   <!-- ── STOCK ─────────────────────────────────────────────────────── -->
   <div id="sec-stock" class="section">
     <div class="kpi-grid" id="kpi-stock"></div>
-    <div class="row-2">
+    <div class="sub-nav">
+      <span class="sub-tab active" data-section="stock" data-pane="criticos">Críticos</span>
+      <span class="sub-tab" data-section="stock" data-pane="distribucion">Distribución</span>
+      <span class="sub-tab" data-section="stock" data-pane="inmovilizado">Inmovilizado</span>
+    </div>
+    <div id="spane-criticos" class="sub-pane active">
       <div class="card">
-        <div class="card-header"><span class="card-title">Stock por familia</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-stock-fam"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Antigüedad del stock</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-stock-antig"></canvas></div>
+        <div class="card-header"><span class="card-title">Sin stock y bajo punto de pedido</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Artículo</th><th>Depósito</th><th class="num">Stock</th><th class="num">P.Pedido</th><th>Estado</th></tr></thead>
+            <tbody id="tbody-criticos"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Artículos críticos — sin stock / bajo mínimo</span></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Artículo</th><th class="num">Stock</th><th class="num">Mínimo</th><th>Estado</th><th class="num">Días sin mov.</th></tr></thead>
-          <tbody id="tbody-criticos"></tbody>
-        </table>
+    <div id="spane-distribucion" class="sub-pane">
+      <div class="row-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Stock por familia/depósito</span></div>
+          <div class="chart-box" style="height:260px"><canvas id="chart-stock-fam"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Antigüedad del stock</span></div>
+          <div class="chart-box" style="height:260px"><canvas id="chart-stock-antig"></canvas></div>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Stock inmovilizado +90 días</span></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Artículo</th><th class="num">Stock</th><th class="num">Valor</th><th class="num">Días</th></tr></thead>
-          <tbody id="tbody-inmovilizado"></tbody>
-        </table>
+    <div id="spane-inmovilizado" class="sub-pane">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Stock inmovilizado — +90 días sin movimiento</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Artículo</th><th class="num">Stock</th><th class="num">Días sin mov.</th></tr></thead>
+            <tbody id="tbody-inmovilizado"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -465,23 +500,31 @@ tr:hover td { background: var(--gray-50); }
   <!-- ── MOROSIDAD ─────────────────────────────────────────────────── -->
   <div id="sec-morosidad" class="section">
     <div class="kpi-grid" id="kpi-morosidad"></div>
-    <div class="row-2">
+    <div class="sub-nav">
+      <span class="sub-tab active" data-section="mora" data-pane="clientes">Clientes</span>
+      <span class="sub-tab" data-section="mora" data-pane="distribucion">Distribución</span>
+    </div>
+    <div id="mpane-clientes" class="sub-pane active">
       <div class="card">
-        <div class="card-header"><span class="card-title">Distribución por tramo</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-mora-dist"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Composición de mora</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-mora-comp"></canvas></div>
+        <div class="card-header"><span class="card-title">Clientes con mayor deuda vencida</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Teléfono</th><th class="num">Vencido</th><th class="num">Días mora</th><th>Estado</th></tr></thead>
+            <tbody id="tbody-mora-clientes"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Clientes con mayor deuda vencida</span></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Cliente</th><th class="num">Vencido</th><th class="num">Días mora</th><th>Estado</th></tr></thead>
-          <tbody id="tbody-mora-clientes"></tbody>
-        </table>
+    <div id="mpane-distribucion" class="sub-pane">
+      <div class="row-2">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Por tramo de mora</span></div>
+          <div class="chart-box" style="height:240px"><canvas id="chart-mora-dist"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Composición</span></div>
+          <div class="chart-box" style="height:240px"><canvas id="chart-mora-comp"></canvas></div>
+        </div>
       </div>
     </div>
   </div>
@@ -489,27 +532,33 @@ tr:hover td { background: var(--gray-50); }
   <!-- ── OBJETIVOS ─────────────────────────────────────────────────── -->
   <div id="sec-objetivos" class="section">
     <div class="kpi-grid" id="kpi-objetivos"></div>
-    <div class="card" id="card-obj-prog">
-      <div class="card-header">
-        <span class="card-title">Cumplimiento por categoría</span>
-        <span class="card-badge" id="badge-obj-mes">—</span>
-      </div>
-      <div class="prog-list" id="prog-obj"></div>
-      <div class="legend" style="margin-top:12px;">
-        <span class="legend-item"><span class="legend-dot" style="background:var(--teal)"></span>Superado</span>
-        <span class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>En camino</span>
-        <span class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span>En riesgo</span>
-        <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Crítico</span>
-      </div>
+    <div class="sub-nav">
+      <span class="sub-tab active" data-section="obj" data-pane="progreso">Progreso</span>
+      <span class="sub-tab" data-section="obj" data-pane="historico">Histórico</span>
     </div>
-    <div class="row-2">
+    <div id="opane-progreso" class="sub-pane active">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Cumplimiento por categoría</span>
+          <span class="card-badge" id="badge-obj-mes">—</span>
+        </div>
+        <div class="prog-list" id="prog-obj"></div>
+        <div class="legend" style="margin-top:12px;">
+          <span class="legend-item"><span class="legend-dot" style="background:var(--teal)"></span>Superado</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--blue)"></span>En camino</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span>En riesgo</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>Crítico</span>
+        </div>
+      </div>
       <div class="card">
         <div class="card-header"><span class="card-title">Avance acumulado vs meta</span></div>
         <div class="chart-box" style="height:200px"><canvas id="chart-obj-acum"></canvas></div>
       </div>
+    </div>
+    <div id="opane-historico" class="sub-pane">
       <div class="card">
-        <div class="card-header"><span class="card-title">Cumplimiento histórico</span></div>
-        <div class="chart-box" style="height:200px"><canvas id="chart-obj-hist"></canvas></div>
+        <div class="card-header"><span class="card-title">Cumplimiento — últimos 6 meses</span></div>
+        <div class="chart-box" style="height:240px"><canvas id="chart-obj-hist"></canvas></div>
       </div>
     </div>
   </div>
@@ -517,23 +566,29 @@ tr:hover td { background: var(--gray-50); }
   <!-- ── SEGUROS ───────────────────────────────────────────────────── -->
   <div id="sec-seguros" class="section">
     <div class="kpi-grid" id="kpi-seguros"></div>
-    <div class="row-2">
+    <div class="sub-nav">
+      <span class="sub-tab active" data-section="seg" data-pane="polizas">Pólizas Qualia</span>
+      <span class="sub-tab" data-section="seg" data-pane="evolucion">Evolución</span>
+    </div>
+    <div id="sgpane-polizas" class="sub-pane active">
       <div class="card">
-        <div class="card-header"><span class="card-title">Pólizas por familia</span></div>
+        <div class="card-header"><span class="card-title">Últimas pólizas emitidas — mes actual</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Artículo</th><th class="num">Prima</th><th>Estado</th></tr></thead>
+            <tbody id="tbody-seg-detalle"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-header"><span class="card-title">Distribución por tipo de servicio</span></div>
         <div class="chart-box" style="height:220px"><canvas id="chart-seg-fam"></canvas></div>
       </div>
-      <div class="card">
-        <div class="card-header"><span class="card-title">Evolución mensual</span></div>
-        <div class="chart-box" style="height:220px"><canvas id="chart-seg-ev"></canvas></div>
-      </div>
     </div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Últimas pólizas emitidas</span></div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Fecha</th><th>Cliente</th><th>Artículo</th><th class="num">Prima</th><th>Vigencia</th><th>Estado</th></tr></thead>
-          <tbody id="tbody-seg-detalle"></tbody>
-        </table>
+    <div id="sgpane-evolucion" class="sub-pane">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Evolución mensual — pólizas y garantías</span></div>
+        <div class="chart-box" style="height:240px"><canvas id="chart-seg-ev"></canvas></div>
       </div>
     </div>
   </div>
@@ -826,6 +881,52 @@ function getDemoData() {
     }
   };
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// SUB-TABS — navegación interna por sección
+// ═══════════════════════════════════════════════════════════════════════
+var PANE_MAP = {
+  ventas: { prefix: "vpane", default: "evolucion" },
+  stock:  { prefix: "spane", default: "criticos"  },
+  mora:   { prefix: "mpane", default: "clientes"  },
+  obj:    { prefix: "opane", default: "progreso"  },
+  seg:    { prefix: "sgpane",default: "polizas"   }
+};
+
+document.addEventListener("click", function(e) {
+  var t = e.target;
+  if (!t.classList.contains("sub-tab")) return;
+  var section = t.getAttribute("data-section");
+  var pane    = t.getAttribute("data-pane");
+  if (!section || !pane) return;
+
+  var map = PANE_MAP[section];
+  if (!map) return;
+
+  // Desactivar tabs del mismo grupo
+  t.closest(".sub-nav").querySelectorAll(".sub-tab").forEach(function(st) {
+    st.classList.remove("active");
+  });
+  t.classList.add("active");
+
+  // Mostrar pane correspondiente, ocultar hermanos
+  var prefix = map.prefix;
+  // Buscar todos los panes con este prefijo dentro del mismo section container
+  var container = t.closest(".section");
+  container.querySelectorAll('[id^="' + prefix + '"]').forEach(function(p) {
+    p.classList.remove("active");
+  });
+  var target = document.getElementById(prefix + "-" + pane);
+  if (target) {
+    target.classList.add("active");
+    // Forzar re-render de charts al hacerse visibles
+    setTimeout(function() {
+      Object.values(STATE.charts).forEach(function(ch) {
+        if (ch && ch.resize) ch.resize();
+      });
+    }, 50);
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════════
 // EVENTOS DEL SELECTOR DE PERÍODO
@@ -1239,12 +1340,14 @@ function renderVentas(v) {
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{font:{size:11},boxWidth:10}}}}});
 
   var rows = "";
-  (v.top_articulos||[]).forEach(function(a,i){
-    rows += "<tr><td>" + (i+1) + "</td><td>" + a.desc + "</td>" +
+  (v.top_articulos||[]).slice(0,30).forEach(function(a,i){
+    rows += "<tr><td>" + (i+1) + "</td><td>" + (a.desc||a.cod||"—") + "</td>" +
       '<td class="num">' + fmtNum(a.unidades) + "</td>" +
       '<td class="num">' + fmtPeso(a.importe) + "</td></tr>";
   });
-  html("tbody-top-art", rows);
+  html("tbody-top-art", rows || "<tr><td colspan='4' style='text-align:center;color:var(--text-muted);padding:16px'>Sin datos de artículos</td></tr>");
+  var br = document.getElementById("badge-ranking-periodo");
+  if (br) br.textContent = PERIODO.label();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1280,22 +1383,22 @@ function renderStock(s) {
 
   var rowsCrit = "";
   (s.criticos||[]).forEach(function(a){
-    var p = a.estado==="SIN STOCK" ? pill(a.estado,"danger") : pill(a.estado,"warn");
-    rowsCrit += "<tr><td>" + a.desc + "</td>" +
+    var cls = a.estado==="NEGATIVO"?"danger":a.estado==="SIN STOCK"?"danger":"warn";
+    var p   = pill(a.estado, cls);
+    rowsCrit += "<tr><td>" + (a.desc||a.cod) + "</td>" +
+      "<td>" + (a.deposito||"—") + "</td>" +
       '<td class="num">' + fmtNum(a.stock) + "</td>" +
-      '<td class="num">' + fmtNum(a.minimo) + "</td><td>" + p + "</td>" +
-      '<td class="num">' + a.dias + "</td></tr>";
+      '<td class="num">' + fmtNum(a.minimo) + "</td><td>" + p + "</td></tr>";
   });
   html("tbody-criticos", rowsCrit || "<tr><td colspan='5' style='text-align:center;color:var(--text-muted);padding:16px'>Sin artículos críticos</td></tr>");
 
   var rowsInm = "";
   (s.inmovilizados||[]).forEach(function(a){
-    rowsInm += "<tr><td>" + a.desc + "</td>" +
+    rowsInm += "<tr><td>" + (a.desc||a.cod) + "</td>" +
       '<td class="num">' + fmtNum(a.stock) + "</td>" +
-      '<td class="num">' + fmtPeso(a.valor) + "</td>" +
       '<td class="num">' + a.dias + " días</td></tr>";
   });
-  html("tbody-inmovilizado", rowsInm || "<tr><td colspan='4' style='text-align:center;color:var(--text-muted);padding:16px'>Sin stock inmovilizado</td></tr>");
+  html("tbody-inmovilizado", rowsInm || "<tr><td colspan='3' style='text-align:center;color:var(--text-muted);padding:16px'>Sin stock inmovilizado</td></tr>");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1333,10 +1436,11 @@ function renderMorosidad(m) {
   (m.clientes||[]).forEach(function(c){
     var cls = c.estado==="ALTO RIESGO"?"danger":c.estado==="SEGUIMIENTO"?"warn":"info";
     rows += "<tr><td>" + c.nombre + "</td>" +
+      "<td>" + (c.telefono||"—") + "</td>" +
       '<td class="num">' + fmtPeso(c.vencido) + "</td>" +
       '<td class="num">' + c.dias_mora + "d</td><td>" + pill(c.estado, cls) + "</td></tr>";
   });
-  html("tbody-mora-clientes", rows);
+  html("tbody-mora-clientes", rows || "<tr><td colspan='5' style='text-align:center;color:var(--text-muted);padding:16px'>Sin clientes morosos</td></tr>");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
