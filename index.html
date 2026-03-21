@@ -995,6 +995,9 @@ actualizarBadgePeriodo();
 function calcularKpisVentas(filas) {
   var ventasMes = 0, netoMes = 0, cntMes = 0, ncCant = 0, ncImporte = 0;
   var porMes = {};
+  // top_articulos y por_familia se calculan desde _raw_ventas_art si disponible
+  // sino se mantienen los del servidor
+  var topArt = {}, porFam = {};
 
   filas.forEach(function(r) {
     var total = parseFloat(r.Total || 0);
@@ -1011,7 +1014,6 @@ function calcularKpisVentas(filas) {
       porMes[mes].neto  += neto;
       porMes[mes].cant++;
     } else if (tipo === "N/C") {
-      // NC suma al total (ya tiene signo negativo) pero NO al contador de tickets
       ventasMes += total;
       netoMes   += neto;
       ncCant++;
@@ -1022,9 +1024,30 @@ function calcularKpisVentas(filas) {
     }
   });
 
-  var ticketProm = cntMes > 0 ? ventasMes / cntMes : 0;
+  // Calcular top_articulos desde _raw ventas_articulos si disponible
+  var rawArt = STATE.data && STATE.data._raw_ventas_art;
+  if (rawArt && rawArt.length) {
+    var artFiltrados = PERIODO.filtrar(rawArt, "Fecha");
+    artFiltrados.forEach(function(r) {
+      var cod  = r.CodArticulo || "";
+      var desc = r.DescripcionLarga || r.Descripcion || cod;
+      var dep  = r.Deposito || "S/D";
+      var imp  = parseFloat(r.ImporteNeto || 0);
+      var cant = parseFloat(r.Cantidad    || 0);
+      if (!topArt[cod]) topArt[cod] = { cod: cod, desc: desc, familia: dep, importe: 0, unidades: 0 };
+      topArt[cod].importe  += imp;
+      topArt[cod].unidades += cant;
+      if (!porFam[dep]) porFam[dep] = 0;
+      porFam[dep] += imp;
+    });
+  }
 
-  var evolucion = Object.keys(porMes).sort().map(function(m) {
+  var topArr = Object.values(topArt).sort(function(a,b){return b.importe-a.importe;}).slice(0,30);
+  var famArr = Object.entries(porFam).map(function(e){return {familia:e[0],importe:e[1]};})
+    .sort(function(a,b){return b.importe-a.importe;}).slice(0,8);
+
+  var ticketProm = cntMes > 0 ? ventasMes / cntMes : 0;
+  var evolucion  = Object.keys(porMes).sort().map(function(m) {
     return { mes: m, total: Math.round(porMes[m].total), neto: Math.round(porMes[m].neto), cant: porMes[m].cant };
   });
 
@@ -1038,8 +1061,8 @@ function calcularKpisVentas(filas) {
       nc_importe:        Math.round(ncImporte)
     },
     evolucion_mensual: evolucion,
-    top_articulos:     [],
-    por_familia:       []
+    top_articulos:     topArr.length ? topArr : (STATE.data && STATE.data.ventas ? (STATE.data.ventas.top_articulos||[]) : []),
+    por_familia:       famArr.length ? famArr  : (STATE.data && STATE.data.ventas ? (STATE.data.ventas.por_familia   ||[]) : [])
   };
 }
 
@@ -1185,10 +1208,11 @@ function fetchData() {
 function cargarRawData() {
   // Carga los CSV completos en background para habilitar filtrado por período
   var modulos = [
-    { mod: "raw_ventas",    key: "_raw_ventas",    tabs: ["ventas","resumen"] },
-    { mod: "raw_morosidad", key: "_raw_morosidad", tabs: ["morosidad","resumen"] },
-    { mod: "raw_seguros",   key: "_raw_seguros",   tabs: ["seguros","resumen"] },
-    { mod: "raw_garantias", key: "_raw_garantias", tabs: ["seguros","resumen"] }
+    { mod: "raw_ventas",      key: "_raw_ventas",      tabs: ["ventas","resumen"] },
+    { mod: "raw_ventas_art",  key: "_raw_ventas_art",  tabs: ["ventas"] },
+    { mod: "raw_morosidad",   key: "_raw_morosidad",   tabs: ["morosidad","resumen"] },
+    { mod: "raw_seguros",     key: "_raw_seguros",     tabs: ["seguros","resumen"] },
+    { mod: "raw_garantias",   key: "_raw_garantias",   tabs: ["seguros","resumen"] }
   ];
 
   modulos.forEach(function(m) {
