@@ -898,10 +898,10 @@ function calcularKpisVentas(filas) {
   filas.forEach(function(r) {
     var total = parseFloat(r.Total || 0);
     var neto  = parseFloat(r.Neto  || 0);
-    var tipo  = r.TipoOperacion || r.TipoComprobante || "";
+    var tipo  = r.TipoComprobante || "";
     var mes   = r.MesAnio || (r.Fecha || "").slice(0, 7);
 
-    if (tipo === "VENTA" || r.TipoComprobante === "FAC" || r.TipoComprobante === "FCE") {
+    if (tipo === "FAC" || tipo === "FCE") {
       ventasMes += total;
       netoMes   += neto;
       cntMes++;
@@ -909,9 +909,15 @@ function calcularKpisVentas(filas) {
       porMes[mes].total += total;
       porMes[mes].neto  += neto;
       porMes[mes].cant++;
-    } else if (tipo === "NOTA_CREDITO" || r.TipoComprobante === "N/C") {
+    } else if (tipo === "N/C") {
+      // NC suma al total (ya tiene signo negativo) pero NO al contador de tickets
+      ventasMes += total;
+      netoMes   += neto;
       ncCant++;
       ncImporte += Math.abs(total);
+      if (!porMes[mes]) porMes[mes] = { total: 0, neto: 0, cant: 0 };
+      porMes[mes].total += total;
+      porMes[mes].neto  += neto;
     }
   });
 
