@@ -1210,9 +1210,9 @@ function cargarRawData() {
   var modulos = [
     { mod: "raw_ventas",      key: "_raw_ventas",      tabs: ["ventas","resumen"] },
     { mod: "raw_ventas_art",  key: "_raw_ventas_art",  tabs: ["ventas"] },
-    { mod: "raw_morosidad",   key: "_raw_morosidad",   tabs: ["morosidad","resumen"] },
     { mod: "raw_seguros",     key: "_raw_seguros",     tabs: ["seguros","resumen"] },
     { mod: "raw_garantias",   key: "_raw_garantias",   tabs: ["seguros","resumen"] }
+    // raw_morosidad NO se carga — la mora es acumulada histórica, no se filtra por período
   ];
 
   modulos.forEach(function(m) {
@@ -1295,12 +1295,9 @@ function renderSection(tab) {
     ventasData = d.ventas;
   }
 
-  if (d._raw_morosidad && d._raw_morosidad.length) {
-    var mf = PERIODO.filtrar(d._raw_morosidad, "FechaVencimiento");
-    moraData = calcularKpisMorosidad(mf);
-  } else {
-    moraData = d.morosidad;
-  }
+  // MOROSIDAD: nunca se filtra por período — es deuda acumulada histórica
+  // Filtrar por FechaVencimiento excluiría cuotas vencidas en meses anteriores
+  moraData = d.morosidad;
 
   if (d._raw_seguros && d._raw_seguros.length) {
     var sf = PERIODO.filtrar(d._raw_seguros,   "FechaEmision");
@@ -1639,7 +1636,7 @@ function renderSeguros(s) {
 function renderResumen(d, ventasData, moraData, segurosData) {
   var v   = ventasData  || d.ventas    || {};
   var s   = d.stock     || {};
-  var m   = moraData    || d.morosidad || {};
+  var m   = d.morosidad    || {};
   var seg = segurosData || d.seguros   || {};
 
   var vk  = v.kpis   || {};
