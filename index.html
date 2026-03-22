@@ -1328,7 +1328,7 @@ function renderVentas(v) {
   var k = v.kpis;
   html("kpi-ventas",
     kpiCard("Ventas totales",      fmtPeso(k.ventas_mes),    PERIODO.label(),                               "up",   "accent") +
-    kpiCard("Ventas sin impuestos",fmtPeso(k.ventas_neto),   fmtNum(k.comprobantes_mes) + " comprobantes",  "up",   "accent") +
+    kpiCard("Ventas sin impuestos",fmtPeso(k.ventas_neto),   fmtNum(k.comprobantes_mes) + " FAC — " + fmtNum(k.nc_cantidad) + " NC",  "up",   "accent") +
     kpiCard("Ticket promedio",     fmtPeso(k.ticket_promedio),"con IVA",                                    "flat", "accent") +
     kpiCard("Notas de crédito",    k.nc_cantidad,             fmtPeso(k.nc_importe) + " en NC",             k.nc_cantidad>10?"down":"flat","warn")
   );
