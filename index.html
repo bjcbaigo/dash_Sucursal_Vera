@@ -1448,12 +1448,10 @@ function renderMorosidad(m) {
   if (!m || m.error) return;
   var k = m.kpis;
   html("kpi-morosidad",
-    kpiCard("Saldo deudores", fmtPeso(k.saldo_total), "cuentas corrientes","flat","accent") +
-    kpiCard("Vencido total", fmtPeso(k.vencido_total), k.pct_mora + "% del saldo","down","danger") +
-    kpiCard("Mora +90 días", fmtPeso(k.mora_mas_90), "alto riesgo","down","danger") +
-    kpiCard("Mora 31–90d", fmtPeso(k.mora_31_90), "seguimiento","down","warn") +
-    kpiCard("Mora 1–30d", fmtPeso(k.mora_1_30), "gestión inmediata","down","warn") +
-    kpiCard("Clientes morosos", k.clientes_morosos, "al menos 1 cuota vencida","down","warn")
+    kpiCard("Mora total vencida",  fmtPeso(k.saldo_total),  k.clientes_morosos + " clientes", "down","danger") +
+    kpiCard("Mora 1–30 días",      fmtPeso(k.mora_1_30),    "gestión inmediata",              "down","warn")   +
+    kpiCard("Mora 31–90 días",     fmtPeso(k.mora_31_90),   "seguimiento activo",             "down","warn")   +
+    kpiCard("Mora +90 días",       fmtPeso(k.mora_mas_90),  "alto riesgo",                    "down","danger")
   );
 
   if (m.distribucion) {
